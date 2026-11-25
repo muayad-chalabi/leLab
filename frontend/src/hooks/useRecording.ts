@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { useHfAuth } from "@/contexts/HfAuthContext";
-import { RobotRecord } from "@/hooks/useRobots";
+import { RobotRecord, rightArmPorts } from "@/hooks/useRobots";
 import { CameraConfig, cameraConfigurationError, serializeCameras } from "@/lib/cameraConfig";
 import { useCameraBindings } from "@/hooks/useCameraBindings";
 import { ImageFeatures } from "@/lib/checkpointsApi";
@@ -133,6 +133,7 @@ export const useRecording = (robot: RobotRecord | null) => {
       follower_port: robot.follower_port,
       leader_config: robot.leader_config,
       follower_config: robot.follower_config,
+      ...rightArmPorts(robot),
       dataset_repo_id: datasetRepoId,
       single_task: singleTask,
       num_episodes: numEpisodes,

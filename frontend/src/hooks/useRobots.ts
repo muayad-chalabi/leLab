@@ -12,7 +12,17 @@ export interface RobotRecord {
   follower_config: string;
   cameras: CameraConfig[];
   is_clean: boolean;
+  // Bimanual: the robot acting as this one's right arm, and its ports (resolved by the backend).
+  right_arm?: string;
+  right_leader_port?: string;
+  right_follower_port?: string;
 }
+
+/** Right-arm ports to add to a teleop/record/replay/inference request (none if single-arm). */
+export const rightArmPorts = (robot: RobotRecord) =>
+  robot.right_arm
+    ? { right_leader_port: robot.right_leader_port, right_follower_port: robot.right_follower_port }
+    : {};
 
 const SELECTED_KEY = "lelab.selectedRobot";
 
@@ -159,6 +169,29 @@ export const useRobots = () => {
     [baseUrl, fetchWithHeaders, toast]
   );
 
+  const setRightArm = useCallback(
+    async (name: string, rightArm: string): Promise<boolean> => {
+      try {
+        const res = await fetchWithHeaders(`${baseUrl}/robots/${encodeURIComponent(name)}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ right_arm: rightArm }),
+        });
+        if (!res.ok) {
+          toast({ title: "Failed to save", description: await res.text(), variant: "destructive" });
+          return false;
+        }
+        const data = await res.json();
+        if (data.robot) setRecords((prev) => ({ ...prev, [name]: data.robot }));
+        return true;
+      } catch (e) {
+        toast({ title: "Network error", description: String(e), variant: "destructive" });
+        return false;
+      }
+    },
+    [baseUrl, fetchWithHeaders, toast]
+  );
+
   const selectedRecord = useMemo(
     () => (selectedName ? records[selectedName] ?? null : null),
     [selectedName, records]
@@ -179,5 +212,6 @@ export const useRobots = () => {
     clearSelection,
     createRobot,
     deleteRobot,
+    setRightArm,
   };
 };

@@ -14,8 +14,18 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { RobotRecord } from "@/hooks/useRobots";
+import { useRobotProfile } from "@/hooks/useDefaultUrdfPath";
 import RobotSelector from "./RobotSelector";
+
+const NO_RIGHT_ARM = "__none__";
 
 interface RobotTileProps {
   robot: RobotRecord | null;
@@ -27,6 +37,7 @@ interface RobotTileProps {
   onConfigure: (name: string) => void;
   onTeleop: (robot: RobotRecord) => void;
   onDelete: (name: string) => void;
+  onSetRightArm: (name: string, rightArm: string) => void;
 }
 
 const RobotTile: React.FC<RobotTileProps> = ({
@@ -39,8 +50,11 @@ const RobotTile: React.FC<RobotTileProps> = ({
   onConfigure,
   onTeleop,
   onDelete,
+  onSetRightArm,
 }) => {
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const profile = useRobotProfile();
+  const rightArmOptions = availableNames.filter((n) => n !== robot?.name);
   const status = robot ? (robot.is_clean ? "Ready" : "Needs configuration") : null;
   const teleopDisabled = !robot || !robot.is_clean;
 
@@ -100,6 +114,28 @@ const RobotTile: React.FC<RobotTileProps> = ({
         )}
       </div>
 
+      {robot && profile?.bimanual && (
+        <div className="flex items-center gap-2 text-sm">
+          <span className="text-gray-400 shrink-0">Right arm</span>
+          <Select
+            value={robot.right_arm || NO_RIGHT_ARM}
+            onValueChange={(v) => onSetRightArm(robot.name, v === NO_RIGHT_ARM ? "" : v)}
+          >
+            <SelectTrigger className="h-8 bg-gray-900 border-gray-700 text-white" aria-label="Right arm">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent className="bg-gray-900 border-gray-700 text-white">
+              <SelectItem value={NO_RIGHT_ARM}>None (single arm)</SelectItem>
+              {rightArmOptions.map((n) => (
+                <SelectItem key={n} value={n}>
+                  {n}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+
       {robot && (
         <Tooltip>
           <TooltipTrigger asChild>
@@ -118,7 +154,11 @@ const RobotTile: React.FC<RobotTileProps> = ({
             </div>
           </TooltipTrigger>
           {teleopDisabled && (
-            <TooltipContent>Configure the robot first.</TooltipContent>
+            <TooltipContent>
+              {robot.right_arm
+                ? `Configure both this robot and "${robot.right_arm}" first.`
+                : "Configure the robot first."}
+            </TooltipContent>
           )}
         </Tooltip>
       )}

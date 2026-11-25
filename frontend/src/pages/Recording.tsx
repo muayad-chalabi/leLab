@@ -46,6 +46,8 @@ interface RecordingConfig {
   follower_port: string;
   leader_config: string;
   follower_config: string;
+  right_leader_port?: string;
+  right_follower_port?: string;
   dataset_repo_id: string;
   single_task: string;
   num_episodes: number;

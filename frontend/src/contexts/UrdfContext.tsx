@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { UrdfProcessor, readUrdfFileContent } from "@/lib/UrdfDragAndDrop";
 import { UrdfFileModel } from "@/lib/types";
 import { RobotAnimationConfig } from "@/lib/types";
+import { useDefaultUrdfPath } from "@/hooks/useDefaultUrdfPath";
 
 // Define the result interface for Urdf detection
 interface UrdfDetectionResult {
@@ -74,17 +75,18 @@ export const UrdfProvider: React.FC<UrdfProviderProps> = ({ children }) => {
   const [urdfModelOptions, setUrdfModelOptions] = useState<UrdfFileModel[]>([]);
 
   const [isDefaultModel, setIsDefaultModel] = useState(true);
+  const defaultUrdfPath = useDefaultUrdfPath();
   const [urdfContent, setUrdfContent] = useState<string | null>(null);
 
   const [currentAnimationConfig, setCurrentAnimationConfig] =
     useState<RobotAnimationConfig | null>(null);
 
   useEffect(() => {
-    if (!isDefaultModel || urdfContent) return;
+    if (!isDefaultModel || urdfContent || !defaultUrdfPath) return;
     let cancelled = false;
     (async () => {
       try {
-        const response = await fetch("/so-101-urdf/urdf/so101_new_calib.urdf");
+        const response = await fetch(defaultUrdfPath);
         if (!response.ok) {
           throw new Error(`Failed to fetch default Urdf: ${response.statusText}`);
         }
@@ -99,7 +101,7 @@ export const UrdfProvider: React.FC<UrdfProviderProps> = ({ children }) => {
     return () => {
       cancelled = true;
     };
-  }, [isDefaultModel, urdfContent]);
+  }, [isDefaultModel, urdfContent, defaultUrdfPath]);
 
   // Reference for callbacks
   const urdfCallbacksRef = useRef<((result: UrdfDetectionResult) => void)[]>(

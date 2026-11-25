@@ -2,7 +2,7 @@ import React from "react";
 import { useNavigate } from "react-router-dom";
 import { useApi } from "@/contexts/ApiContext";
 import { useToast } from "@/hooks/use-toast";
-import { RobotRecord } from "@/hooks/useRobots";
+import { RobotRecord, rightArmPorts } from "@/hooks/useRobots";
 import RobotTile from "./RobotTile";
 
 interface RobotConfigManagerProps {
@@ -13,6 +13,7 @@ interface RobotConfigManagerProps {
   selectRobot: (name: string) => void;
   createRobot: (name: string) => Promise<boolean>;
   deleteRobot: (name: string) => Promise<boolean>;
+  setRightArm: (name: string, rightArm: string) => Promise<boolean>;
 }
 
 const RobotConfigManager: React.FC<RobotConfigManagerProps> = ({
@@ -23,6 +24,7 @@ const RobotConfigManager: React.FC<RobotConfigManagerProps> = ({
   selectRobot,
   createRobot,
   deleteRobot,
+  setRightArm,
 }) => {
   const navigate = useNavigate();
   const { baseUrl, fetchWithHeaders } = useApi();
@@ -42,6 +44,7 @@ const RobotConfigManager: React.FC<RobotConfigManagerProps> = ({
           follower_port: robot.follower_port,
           leader_config: robot.leader_config,
           follower_config: robot.follower_config,
+          ...rightArmPorts(robot),
         }),
       });
       const data = await res.json();
@@ -81,6 +84,7 @@ const RobotConfigManager: React.FC<RobotConfigManagerProps> = ({
       onConfigure={handleConfigure}
       onTeleop={handleTeleop}
       onDelete={deleteRobot}
+      onSetRightArm={setRightArm}
     />
   );
 };

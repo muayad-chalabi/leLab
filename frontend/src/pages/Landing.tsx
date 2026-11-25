@@ -30,6 +30,7 @@ const Landing = () => {
     selectRobot,
     createRobot,
     deleteRobot,
+    setRightArm,
   } = useRobots();
 
   const { datasets, loading: datasetsLoading } = useDatasets();
@@ -77,6 +78,7 @@ const Landing = () => {
             selectRobot={selectRobot}
             createRobot={createRobot}
             deleteRobot={deleteRobot}
+            setRightArm={setRightArm}
           />
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div

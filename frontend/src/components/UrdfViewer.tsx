@@ -11,6 +11,8 @@ import { cn } from "@/lib/utils";
 import URDFManipulator from "urdf-loader/src/urdf-manipulator-element.js";
 import { useUrdf } from "@/hooks/useUrdf";
 import { useRealTimeJoints } from "@/hooks/useRealTimeJoints";
+import { useDefaultUrdfPath } from "@/hooks/useDefaultUrdfPath";
+import { useRobots } from "@/hooks/useRobots";
 import {
   createUrdfViewer,
   fitGridToRobot,
@@ -37,6 +39,8 @@ const UrdfViewer: React.FC = () => {
   const [highlightedJoint, setHighlightedJoint] = useState<string | null>(null);
   const { registerUrdfProcessor, alternativeUrdfModels, isDefaultModel } =
     useUrdf();
+  const { selectedRecord } = useRobots();
+  const defaultUrdfPath = useDefaultUrdfPath(Boolean(selectedRecord?.right_arm));
 
   const cleanupAnimationRef = useRef<(() => void) | null>(null);
   const viewerRef = useRef<URDFViewerElement | null>(null);
@@ -129,6 +133,7 @@ const UrdfViewer: React.FC = () => {
   // Main effect to create and setup the viewer only once
   useEffect(() => {
     if (!containerRef.current) return;
+    if (isDefaultModel && !defaultUrdfPath) return;
 
     // Create and configure the URDF viewer element
     const viewer = createUrdfViewer(containerRef.current, true);
@@ -142,7 +147,7 @@ const UrdfViewer: React.FC = () => {
 
     // Determine which URDF to load - fixed path to match the actual available file
     const urdfPath = isDefaultModel
-      ? "/so-101-urdf/urdf/so101_new_calib.urdf"
+      ? defaultUrdfPath || ""
       : customUrdfPath || "";
 
     // Set the package path for the default model
@@ -262,6 +267,7 @@ const UrdfViewer: React.FC = () => {
     };
   }, [
     isDefaultModel,
+    defaultUrdfPath,
     customUrdfPath,
     urlModifierFunc,
     defaultUrlModifier,

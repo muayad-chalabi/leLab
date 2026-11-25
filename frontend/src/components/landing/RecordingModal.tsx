@@ -132,6 +132,11 @@ const RecordingModal: React.FC<RecordingModalProps> = ({
                   <CheckCircle className="w-4 h-4 text-green-400" />
                   <span className="text-slate-200">
                     Recording with <strong>{robot.name}</strong>
+                    {robot.right_arm && (
+                      <>
+                        {" "}+ <strong>{robot.right_arm}</strong> (right arm)
+                      </>
+                    )}
                   </span>
                 </div>
               )}
