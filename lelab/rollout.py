@@ -41,7 +41,7 @@ from lerobot.utils.device_utils import auto_select_torch_device
 
 from .camera_config import lerobot_camera_settings, validate_camera_rotations
 from .robot_profile import PROFILE
-from .utils.config import setup_follower_calibration_file
+from .utils.config import calibration_ids_for
 from .utils.devices import follower_lock
 
 logger = logging.getLogger(__name__)
@@ -56,6 +56,7 @@ class InferenceRequest(BaseModel):
     duration_s: int = 60
     # Set for a bimanual robot; follower_port is then the left arm.
     right_follower_port: str | None = None
+    right_follower_config: str | None = None
 
     @field_validator("cameras")
     @classmethod
@@ -351,7 +352,9 @@ def handle_start_inference(request: InferenceRequest) -> dict[str, Any]:
         # .json extension. We need that stripped form for `--robot.id`,
         # because lerobot appends `.json` itself when constructing
         # `calibration_dir / f"{id}.json"`.
-        follower_id = setup_follower_calibration_file(request.follower_config)
+        _, follower_id = calibration_ids_for(
+            None, request.follower_config, right_follower_config=request.right_follower_config
+        )
         policy_path = _resolve_policy_path(request.policy_ref)
 
         cmd = [

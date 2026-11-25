@@ -31,7 +31,7 @@ from lerobot.scripts.lerobot_record import RecordConfig
 from .camera_config import lerobot_camera_settings, validate_camera_rotations
 from .episode_media import UnreadableDatasetError, ensure_episode_index
 from .robot_profile import connect_devices, follower_config, leader_config
-from .utils.config import setup_calibration_files, with_lelab_tag
+from .utils.config import calibration_ids_for, with_lelab_tag
 from .utils.devices import follower_lock, safe_disconnect_device
 
 logger = logging.getLogger(__name__)
@@ -68,6 +68,8 @@ class RecordingRequest(BaseModel):
     # Set together for a bimanual robot; the ports above are then the left arms.
     right_leader_port: str | None = None
     right_follower_port: str | None = None
+    right_leader_config: str | None = None
+    right_follower_config: str | None = None
     num_episodes: int = 5
     episode_time_s: int = 30
     reset_time_s: int = 10
@@ -180,8 +182,11 @@ def create_record_config(request: RecordingRequest) -> RecordConfig:
     from lerobot.utils.constants import HF_LEROBOT_HOME
 
     # Setup calibration files
-    leader_config_name, follower_config_name = setup_calibration_files(
-        request.leader_config, request.follower_config
+    leader_config_name, follower_config_name = calibration_ids_for(
+        request.leader_config,
+        request.follower_config,
+        request.right_leader_config,
+        request.right_follower_config,
     )
 
     # Convert the frontend camera dict into OpenCVCameraConfig objects. Backend

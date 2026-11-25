@@ -21,7 +21,7 @@ from typing import Any
 from pydantic import BaseModel
 
 from .robot_profile import PROFILE, connect_devices, make_follower, make_leader
-from .utils.config import setup_calibration_files
+from .utils.config import calibration_ids_for
 from .utils.devices import follower_lock, safe_disconnect_device
 
 logger = logging.getLogger(__name__)
@@ -41,6 +41,8 @@ class TeleoperateRequest(BaseModel):
     # Set together for bimanual teleoperation; the ports above are then the left arms.
     right_leader_port: str | None = None
     right_follower_port: str | None = None
+    right_leader_config: str | None = None
+    right_follower_config: str | None = None
 
 
 def get_joint_positions_from_robot(robot) -> dict[str, float]:
@@ -75,18 +77,23 @@ def get_joint_positions_from_robot(robot) -> dict[str, float]:
     try:
         observation = robot.get_observation()
 
+        # A bimanual follower reports left_/right_ prefixed keys, which match the
+        # joint names of the two-arm URDF.
+        prefixes = ("left_", "right_") if "left_shoulder_pan.pos" in observation else ("",)
         joint_positions: dict[str, float] = {}
         debug_rows = []
-        for motor_name, urdf_joint_name in motor_to_urdf_mapping.items():
-            motor_key = f"{motor_name}.pos"
-            if motor_key not in observation:
-                logger.warning(f"Motor {motor_key} not found in observation")
-                joint_positions[urdf_joint_name] = 0.0
-                continue
+        for prefix in prefixes:
+            for motor_name, urdf_joint_name in motor_to_urdf_mapping.items():
+                motor_key = f"{prefix}{motor_name}.pos"
+                urdf_key = f"{prefix}{urdf_joint_name}"
+                if motor_key not in observation:
+                    logger.warning(f"Motor {motor_key} not found in observation")
+                    joint_positions[urdf_key] = 0.0
+                    continue
 
-            angle_degrees = observation[motor_key]
-            joint_positions[urdf_joint_name] = angle_degrees * math.pi / 180.0
-            debug_rows.append(f"{motor_name:14s} {angle_degrees:+8.2f}° → {urdf_joint_name:11s}")
+                angle_degrees = observation[motor_key]
+                joint_positions[urdf_key] = angle_degrees * math.pi / 180.0
+                debug_rows.append(f"{motor_key:20s} {angle_degrees:+8.2f}° → {urdf_key:18s}")
 
         # Throttled debug print (~once per second at 20 Hz broadcast).
         now = time.time()
@@ -98,7 +105,7 @@ def get_joint_positions_from_robot(robot) -> dict[str, float]:
 
     except Exception as e:
         logger.error(f"Error getting joint positions: {e}")
-        return dict.fromkeys(motor_to_urdf_mapping.values(), 0.0)
+        return {}
 
 
 # The DK1 gripper reports 0 (open) to 1 (closed); each URDF finger slides from
@@ -168,8 +175,11 @@ def handle_start_teleoperation(request: TeleoperateRequest, websocket_manager=No
         )
 
         # Setup calibration files
-        leader_config_name, follower_config_name = setup_calibration_files(
-            request.leader_config, request.follower_config
+        leader_config_name, follower_config_name = calibration_ids_for(
+            request.leader_config,
+            request.follower_config,
+            request.right_leader_config,
+            request.right_follower_config,
         )
 
         logger.info("Initializing robot and teleop device...")

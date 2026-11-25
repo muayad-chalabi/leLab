@@ -162,6 +162,7 @@ const InferenceModal: React.FC<Props> = ({
         follower_port: robot.follower_port,
         follower_config: robot.follower_config,
         right_follower_port: robot.right_arm ? robot.right_follower_port : undefined,
+        right_follower_config: robot.right_arm ? robot.right_follower_config : undefined,
         policy_ref: selectedRef,
         task,
         cameras: cameraBindings.toCameraDict(DEFAULT_FPS),

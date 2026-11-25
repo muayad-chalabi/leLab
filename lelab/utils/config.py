@@ -137,6 +137,40 @@ def setup_calibration_files(leader_config: str, follower_config: str):
     return leader_config_name, follower_config_name
 
 
+def setup_bimanual_calibration_files(
+    leader_config: str, follower_config: str, right_leader_config: str, right_follower_config: str
+):
+    """Materialize the paired calibration files a bimanual robot reads.
+
+    LeRobot's bimanual wrappers give their two arms the ids `<id>_left` and
+    `<id>_right`, so the per-arm calibrations LeLab keeps for each robot record
+    have to be published under those names. Returns the (leader, follower) ids
+    to hand to the bimanual config.
+
+    The pair files are rewritten on every call so recalibrating either arm takes
+    effect, and the id carries both source names so re-pairing with a different
+    robot cannot reuse stale files.
+    """
+    left_leader, left_follower = setup_calibration_files(leader_config, follower_config)
+    right_leader, right_follower = setup_calibration_files(right_leader_config, right_follower_config)
+
+    pairs = (
+        (LEADER_CONFIG_PATH, left_leader, right_leader),
+        (FOLLOWER_CONFIG_PATH, left_follower, right_follower),
+    )
+    ids = []
+    for directory, left_name, right_name in pairs:
+        pair_id = f"{left_name}__{right_name}"
+        for side, name in (("left", left_name), ("right", right_name)):
+            shutil.copy2(
+                os.path.join(directory, f"{name}.json"),
+                os.path.join(directory, f"{pair_id}_{side}.json"),
+            )
+        logger.info(f"Bimanual calibration ready: {directory}/{pair_id}_{{left,right}}.json")
+        ids.append(pair_id)
+    return ids[0], ids[1]
+
+
 def setup_follower_calibration_file(follower_config: str):
     """Setup follower calibration file in the correct location for replay functionality"""
     # Extract config name from file path (remove .json extension)
@@ -166,6 +200,39 @@ def setup_follower_calibration_file(follower_config: str):
         logger.info(f"Follower calibration already exists at {follower_target_path}")
 
     return follower_config_name
+
+
+def calibration_ids_for(
+    leader_config: str | None,
+    follower_config: str,
+    right_leader_config: str | None = None,
+    right_follower_config: str | None = None,
+):
+    """Prepare calibration files for one request and return its (leader, follower) ids.
+
+    Picks the paired files when the request names a right arm on a robot whose
+    motors LeLab calibrates; the DK1 carries placeholder calibrations its
+    bimanual wrapper never reads, so it keeps the single-arm ids.
+    """
+    bimanual = bool(right_follower_config) and PROFILE.feetech_calibration
+    if leader_config is None:
+        # Follower-only (replay, inference).
+        if not bimanual:
+            return None, setup_follower_calibration_file(follower_config)
+        left = setup_follower_calibration_file(follower_config)
+        right = setup_follower_calibration_file(right_follower_config)
+        pair_id = f"{left}__{right}"
+        for side, name in (("left", left), ("right", right)):
+            shutil.copy2(
+                os.path.join(FOLLOWER_CONFIG_PATH, f"{name}.json"),
+                os.path.join(FOLLOWER_CONFIG_PATH, f"{pair_id}_{side}.json"),
+            )
+        return None, pair_id
+    if bimanual:
+        return setup_bimanual_calibration_files(
+            leader_config, follower_config, right_leader_config, right_follower_config
+        )
+    return setup_calibration_files(leader_config, follower_config)
 
 
 def find_available_ports():

@@ -26,7 +26,7 @@ from lerobot.utils.robot_utils import precise_sleep
 
 from . import episode_media
 from .robot_profile import connect_devices, make_follower
-from .utils.config import setup_follower_calibration_file
+from .utils.config import calibration_ids_for
 from .utils.devices import follower_lock, safe_disconnect_device
 
 logger = logging.getLogger(__name__)
@@ -46,6 +46,7 @@ class ReplayRequest(BaseModel):
     episode_index: int
     # Set for a bimanual robot; follower_port is then the left arm.
     right_follower_port: str | None = None
+    right_follower_config: str | None = None
 
 
 def _episode_actions(repo_id: str, episode_index: int) -> tuple[list[dict[str, float]], int]:
@@ -81,7 +82,9 @@ def handle_start_replay(request: ReplayRequest) -> dict[str, Any]:
     try:
         actions, fps = _episode_actions(request.dataset_repo_id, request.episode_index)
 
-        follower_id = setup_follower_calibration_file(request.follower_config)
+        _, follower_id = calibration_ids_for(
+            None, request.follower_config, right_follower_config=request.right_follower_config
+        )
         robot = make_follower(request.follower_port, follower_id, right_port=request.right_follower_port)
         connect_devices(robot, follower_port=request.follower_port)
     except Exception as e:

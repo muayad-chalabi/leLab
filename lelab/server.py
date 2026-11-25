@@ -1379,6 +1379,8 @@ def _record_with_clean(record: dict) -> dict:
         out["is_clean"] = out["is_clean"] and partner_clean
         out["right_leader_port"] = partner["leader_port"] if partner_clean else ""
         out["right_follower_port"] = partner["follower_port"] if partner_clean else ""
+        out["right_leader_config"] = partner["leader_config"] if partner_clean else ""
+        out["right_follower_config"] = partner["follower_config"] if partner_clean else ""
     return out
 
 

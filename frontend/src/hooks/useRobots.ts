@@ -16,12 +16,19 @@ export interface RobotRecord {
   right_arm?: string;
   right_leader_port?: string;
   right_follower_port?: string;
+  right_leader_config?: string;
+  right_follower_config?: string;
 }
 
 /** Right-arm ports to add to a teleop/record/replay/inference request (none if single-arm). */
 export const rightArmPorts = (robot: RobotRecord) =>
   robot.right_arm
-    ? { right_leader_port: robot.right_leader_port, right_follower_port: robot.right_follower_port }
+    ? {
+        right_leader_port: robot.right_leader_port,
+        right_follower_port: robot.right_follower_port,
+        right_leader_config: robot.right_leader_config,
+        right_follower_config: robot.right_follower_config,
+      }
     : {};
 
 const SELECTED_KEY = "lelab.selectedRobot";

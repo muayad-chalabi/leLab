@@ -8,10 +8,10 @@ as LeLab. They are vendored here because the 3D viewer loads them over HTTP
 from `frontend/public/`.
 
 `TRLC-DK1-Follower-bimanual.urdf` is generated from the file above by
-[`scripts/make_dk1_bimanual_urdf.py`](../../../scripts/make_dk1_bimanual_urdf.py)
+[`scripts/make_bimanual_urdf.py`](../../../scripts/make_bimanual_urdf.py)
 — do not edit it by hand. Regenerate it (and refresh the copies above from
 upstream) with:
 
 ```bash
-python scripts/make_dk1_bimanual_urdf.py
+python scripts/make_bimanual_urdf.py
 ```

@@ -90,7 +90,7 @@ def test_start_replay_reports_connection_failure(monkeypatch: pytest.MonkeyPatch
     import lelab.replay as replay
 
     monkeypatch.setattr(replay, "_episode_actions", lambda repo_id, episode: ([{"gripper.pos": 0.0}], 30))
-    monkeypatch.setattr(replay, "setup_follower_calibration_file", lambda config: "follower")
+    monkeypatch.setattr(replay, "calibration_ids_for", lambda *a, **k: (None, "follower"))
 
     class _Bus:
         def connect(self) -> None:

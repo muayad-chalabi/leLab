@@ -1,23 +1,26 @@
-<h1 align="center">🦾 LeLab for the TRLC-DK1</h1>
+<h1 align="center">🦾 LeLab, bimanual and beyond the SO-101</h1>
 
 <p align="center">
   A fork of <a href="https://github.com/huggingface/leLab">huggingface/leLab</a> that drives
-  <a href="https://github.com/robot-learning-co/trlc-dk1">TRLC-DK1</a> arms — single or bimanual —
-  instead of only SO-101 arms.
+  <a href="https://github.com/robot-learning-co/trlc-dk1">TRLC-DK1</a> arms as well as SO-101s,
+  and either of them as a <b>bimanual</b> four-arm rig.
 </p>
 
-Upstream LeLab is hardcoded for the SO-101 leader/follower pair. This fork adds a
+Upstream LeLab is hardcoded for a single SO-101 leader/follower pair. This fork adds a
 **robot profile** layer, so the same web UI — calibrate, teleoperate, record, replay,
-train, run inference — works with DK1 arms, including a **bimanual** rig of four arms
-and as many cameras as you can plug in.
+train, run inference — works with:
 
-Everything upstream does still works unchanged: start LeLab without `--robot dk1`
-and you get stock SO-101 behaviour. For general LeLab documentation see
+- a **single SO-101** pair, exactly as upstream (the default);
+- a **bimanual SO-101** rig, two leaders and two followers as one robot;
+- a **single or bimanual TRLC-DK1** rig, with `--robot dk1`;
+
+each with as many cameras as you can plug in. For general LeLab documentation see
 [README.upstream.md](README.upstream.md).
 
-> **Status:** the software has been exercised end-to-end against a simulated DK1 rig
-> (see [Testing without hardware](#testing-without-hardware)), **not yet against real
-> DK1 arms**. Read [Safety](#safety) before your first run on hardware.
+> **Status:** exercised end-to-end against a simulated rig (see
+> [Testing without hardware](#testing-without-hardware)) and, for a single SO-101 pair,
+> on real arms. **Bimanual has not yet run on real hardware** for either robot.
+> Read [Safety](#safety) before your first run.
 
 ---
 
@@ -25,11 +28,11 @@ and you get stock SO-101 behaviour. For general LeLab documentation see
 
 | | |
 |---|---|
+| 👐 **Bimanual** | Pair two robot configs into one four-arm rig — `bi_so_follower` for SO-101s, `bi_dk1_follower` for DK1s. Datasets get `left_*` / `right_*` joint names. |
 | 🤖 **DK1 support** | `lelab --robot dk1` drives `dk1_follower` / `dk1_leader` everywhere: teleop, recording, replay and inference. |
-| 👐 **Bimanual** | Pair two robot configs into one four-arm rig (`bi_dk1_follower` / `bi_dk1_leader`). Datasets get `left_*` / `right_*` joint names. |
-| 🧊 **3D viewer** | The DK1 follower URDF replaces the SO-101 model, and a bimanual rig shows **both** arms moving live. |
+| 🧊 **3D viewer** | Loads the follower model of whichever robot the server drives, and a bimanual rig shows **both** arms moving live. |
 | 📷 **Any number of cameras** | All configured cameras stream side by side while recording (tested with four). |
-| 🚫 **No calibration dance** | The DK1 uses absolute encoders, so "Calibrate" just confirms the arm answers on its port. |
+| 🚫 **No calibration dance (DK1)** | The DK1 uses absolute encoders, so "Calibrate" just confirms the arm answers on its port. SO-101s calibrate as usual, per arm. |
 | 🧪 **Fake hardware rig** | Run and verify the whole app — including dataset fidelity — with no arms or cameras attached. |
 
 ---
@@ -79,8 +82,9 @@ Expect `['bi_dk1_follower', 'dk1_follower']`.
 ~/lelab-dk1/bin/lelab --robot dk1
 ```
 
-The UI opens at <http://127.0.0.1:8000>. Without `--robot dk1` it starts in stock
-SO-101 mode. The choice can also come from the `LELAB_ROBOT` environment variable.
+The UI opens at <http://127.0.0.1:8000>. Drop `--robot dk1` to drive SO-101s instead
+(the default). The choice can also come from the `LELAB_ROBOT` environment variable.
+Bimanual works in either mode — see [Bimanual](#bimanual-four-arms-as-one-robot).
 
 ## First run: one arm pair
 
@@ -89,9 +93,10 @@ SO-101 mode. The choice can also come from the `LELAB_ROBOT` environment variabl
    ~/lelab-dk1/bin/lerobot-find-port
    ```
 2. **Add a robot** on the landing page (e.g. `left`), then press the gear icon to configure it.
-3. **"Calibrate" each side.** On the DK1 this only connects to the arm, confirms it
-   answers on that port and saves a placeholder file — there is no range-of-motion
-   routine. Support the follower while you do this: it goes limp when the step ends.
+3. **"Calibrate" each side.** SO-101s run the usual guided range-of-motion flow. On
+   the DK1 this only connects to the arm, confirms it answers on that port and saves a
+   placeholder file — there is no range-of-motion routine. Either way, support the
+   follower: it goes limp when the step ends.
 4. **Teleoperate.** Match the leader to the follower's pose first (see [Safety](#safety)),
    then press **Teleoperation**.
 
@@ -100,16 +105,22 @@ SO-101 mode. The choice can also come from the `LELAB_ROBOT` environment variabl
 1. Create **two** robots, e.g. `left` and `right`, and configure both as above —
    each one owns its own leader and follower ports.
 2. On the `left` robot's card, set **Right arm** to `right`.
-3. Press **Teleoperation**. LeLab now builds a single `bi_dk1_follower` /
-   `bi_dk1_leader` pair from all four ports.
+3. Press **Teleoperation**. LeLab now builds one four-arm robot from all four ports:
+   `bi_so_follower` / `bi_so_leader` for SO-101s, `bi_dk1_follower` / `bi_dk1_leader`
+   for DK1s.
 
 Notes:
 
 - The pair only shows **Ready** when *both* robots are configured.
 - Cameras come from the **left** (primary) robot's camera list — add every camera there,
-  not split across the two.
+  not split across the two. Their names stay as you typed them (no `left_`/`right_`
+  prefix), so dataset image keys match a single-arm recording.
 - Recordings use `left_*` / `right_*` joint names, the same layout the LeRobot CLI
-  produces for `bi_dk1_follower`, so datasets stay compatible with upstream tooling.
+  produces for these robots, so datasets stay compatible with upstream tooling.
+- **SO-101 calibration:** each arm keeps the calibration you recorded for it. LeLab
+  republishes the two files under the paired names LeRobot expects
+  (`<left>__<right>_left.json` and `..._right.json`), refreshed on every run, so
+  recalibrating either arm takes effect immediately.
 - Setting **Right arm** back to *None (single arm)* restores single-arm mode.
 - Replay and inference send both arms too.
 
@@ -230,7 +241,7 @@ If you have ROS on your `PATH`, its plugins break pytest collection — run
 ## Relationship to upstream
 
 This fork tracks [huggingface/leLab](https://github.com/huggingface/leLab) on `main`;
-the DK1 work lives on the **`dk1`** branch (this repo's default).
+the work lives on the **`dk1`** branch (this repo's default).
 
 **DK1 plugin fix.** `BiDK1Follower` read a `.motors` attribute that `DK1Follower` does
 not have, so creating a `bi_dk1_follower` raised `AttributeError` before it could
@@ -238,18 +249,21 @@ connect — bimanual mode was broken from the LeRobot CLI too, not just in LeLab
 [Our trlc-dk1 fork](https://github.com/muayad-chalabi/trlc-dk1) fixes that and relaxes
 the Python pin to ≥3.10. It has not been proposed upstream yet.
 
-**Where the DK1 support lives:**
+**Where the changes live:**
 
 | Path | Purpose |
 |---|---|
 | [`lelab/robot_profile.py`](lelab/robot_profile.py) | The profile layer: which device types, calibration directories and URDFs a robot uses, plus device construction and connection. |
-| [`lelab/teleoperate.py`](lelab/teleoperate.py) | DK1 observation → URDF joint mapping for the live 3D view, single and bimanual. |
+| [`lelab/teleoperate.py`](lelab/teleoperate.py) | Observation → URDF joint mapping for the live 3D view, single and bimanual, for both robots. |
+| [`lelab/utils/config.py`](lelab/utils/config.py) | Calibration files, including the paired `<left>__<right>_{left,right}.json` a bimanual SO-101 reads. |
 | [`frontend/public/dk1-urdf/`](frontend/public/dk1-urdf/) | DK1 follower URDF + meshes, vendored from trlc-dk1 ([SOURCE.md](frontend/public/dk1-urdf/SOURCE.md)), plus the generated two-arm model. |
-| [`scripts/make_dk1_bimanual_urdf.py`](scripts/make_dk1_bimanual_urdf.py) | Regenerates the two-arm URDF from the single-arm one. |
+| [`scripts/make_bimanual_urdf.py`](scripts/make_bimanual_urdf.py) | Regenerates each two-arm URDF from its single-arm one. |
 | [`tests/fake_hw/`](tests/fake_hw/) | The simulated DK1 rig described above. |
 
 Adding another robot means adding one entry to `PROFILES` in `lelab/robot_profile.py`
-and a URDF — the feature modules no longer name a robot type.
+and a URDF — the feature modules no longer name a robot type. A profile lists the
+modules that register its LeRobot device types, since that registry only fills in as
+device modules are imported.
 
 ## License
 

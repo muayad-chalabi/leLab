@@ -16,7 +16,7 @@ non-subprocess branches of the start/stop/status handlers.
 
 handle_start_inference's happy path spawns a real subprocess and a stdout-
 pumping thread; covering it would require mocking subprocess.Popen, threading,
-and setup_follower_calibration_file. We test only the early-return mutex
+and calibration_ids_for. We test only the early-return mutex
 branches here — the parts that matter for safety."""
 
 from __future__ import annotations
@@ -226,7 +226,7 @@ def test_handle_start_inference_closes_log_when_popen_fails(monkeypatch, tmp_pat
     not leaked — on Windows a leaked handle also keeps the log file locked."""
     from lelab import rollout
 
-    monkeypatch.setattr(rollout, "setup_follower_calibration_file", lambda cfg: "robot_a")
+    monkeypatch.setattr(rollout, "calibration_ids_for", lambda *a, **k: (None, "robot_a"))
     monkeypatch.setattr(rollout, "_resolve_policy_path", lambda ref: str(tmp_path / "model"))
 
     opened: list = []
@@ -262,7 +262,7 @@ def test_handle_start_inference_passes_the_task_verbatim(monkeypatch, tmp_path, 
 
     from lelab import rollout
 
-    monkeypatch.setattr(rollout, "setup_follower_calibration_file", lambda cfg: "robot_a")
+    monkeypatch.setattr(rollout, "calibration_ids_for", lambda *a, **k: (None, "robot_a"))
     monkeypatch.setattr(rollout, "_resolve_policy_path", lambda ref: str(tmp_path / "model"))
     commands: list[list[str]] = []
 

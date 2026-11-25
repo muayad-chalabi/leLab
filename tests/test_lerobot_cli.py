@@ -99,7 +99,7 @@ def test_rollout_argv_parses(monkeypatch, tmp_path) -> None:
         raise OSError("stop before spawning")
 
     monkeypatch.setattr(rollout, "inference_active", False)
-    monkeypatch.setattr(rollout, "setup_follower_calibration_file", lambda name: "robot_a")
+    monkeypatch.setattr(rollout, "calibration_ids_for", lambda *a, **k: (None, "robot_a"))
     monkeypatch.setattr(rollout.subprocess, "Popen", capture)
     rollout.handle_start_inference(
         InferenceRequest(

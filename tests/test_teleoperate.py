@@ -100,7 +100,7 @@ def test_start_teleoperation_reports_connection_failure(
     import lelab.teleoperate as teleop
 
     monkeypatch.setattr(teleop, "teleoperation_active", False)
-    monkeypatch.setattr(teleop, "setup_calibration_files", lambda leader, follower: ("leader", "follower"))
+    monkeypatch.setattr(teleop, "calibration_ids_for", lambda *a, **k: ("leader", "follower"))
 
     class _Bus:
         def connect(self) -> None:
@@ -143,7 +143,7 @@ def test_start_teleoperation_disconnects_follower_when_leader_fails(
     import lelab.teleoperate as teleop
 
     monkeypatch.setattr(teleop, "teleoperation_active", False)
-    monkeypatch.setattr(teleop, "setup_calibration_files", lambda leader, follower: ("leader", "follower"))
+    monkeypatch.setattr(teleop, "calibration_ids_for", lambda *a, **k: ("leader", "follower"))
 
     class _OkBus:
         def connect(self) -> None:
