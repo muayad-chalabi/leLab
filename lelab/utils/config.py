@@ -21,6 +21,8 @@ import time
 from pathlib import Path
 from typing import Literal
 
+from ..robot_profile import PROFILE
+
 logger = logging.getLogger(__name__)
 
 RobotSide = Literal["leader", "follower"]
@@ -28,8 +30,8 @@ RobotSide = Literal["leader", "follower"]
 # Define the calibration config paths (shared between features)
 CALIBRATION_BASE_PATH_TELEOP = os.path.expanduser("~/.cache/huggingface/lerobot/calibration/teleoperators")
 CALIBRATION_BASE_PATH_ROBOTS = os.path.expanduser("~/.cache/huggingface/lerobot/calibration/robots")
-LEADER_CONFIG_PATH = os.path.join(CALIBRATION_BASE_PATH_TELEOP, "so_leader")
-FOLLOWER_CONFIG_PATH = os.path.join(CALIBRATION_BASE_PATH_ROBOTS, "so_follower")
+LEADER_CONFIG_PATH = os.path.join(CALIBRATION_BASE_PATH_TELEOP, PROFILE.leader_calibration_dir)
+FOLLOWER_CONFIG_PATH = os.path.join(CALIBRATION_BASE_PATH_ROBOTS, PROFILE.follower_calibration_dir)
 
 # Define port storage path
 PORT_CONFIG_PATH = os.path.expanduser("~/.cache/huggingface/lerobot/ports")
@@ -332,6 +334,8 @@ def get_default_robot_config(robot_type: str, available_configs: list):
 _INVALID_NAME_CHARS = ("/", "\\", "..")
 _ROBOT_STRING_FIELDS = ("leader_port", "follower_port", "leader_config", "follower_config")
 _ROBOT_LIST_FIELDS = ("cameras",)
+# Optional: name of the robot record acting as this robot's right arm (bimanual).
+_ROBOT_OPTIONAL_STRING_FIELDS = ("right_arm",)
 
 
 def _robot_record_path(name: str) -> str:
@@ -349,7 +353,7 @@ def is_valid_robot_name(name: str) -> bool:
 
 def _empty_record(name: str) -> dict:
     record: dict = {"name": name}
-    for field in _ROBOT_STRING_FIELDS:
+    for field in _ROBOT_STRING_FIELDS + _ROBOT_OPTIONAL_STRING_FIELDS:
         record[field] = ""
     for field in _ROBOT_LIST_FIELDS:
         record[field] = []
@@ -410,7 +414,7 @@ def save_robot_record(name: str, data: dict, allow_create: bool = True) -> bool:
         return False
 
     record = existing if existing is not None else _empty_record(name)
-    for field in _ROBOT_STRING_FIELDS:
+    for field in _ROBOT_STRING_FIELDS + _ROBOT_OPTIONAL_STRING_FIELDS:
         if field in data and isinstance(data[field], str):
             record[field] = data[field]
     for field in _ROBOT_LIST_FIELDS:

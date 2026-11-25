@@ -20,9 +20,7 @@ from typing import Any
 
 from pydantic import BaseModel
 
-from lerobot.robots.so_follower import SO101Follower, SO101FollowerConfig
-from lerobot.teleoperators.so_leader import SO101Leader, SO101LeaderConfig
-
+from .robot_profile import PROFILE, connect_devices, make_follower, make_leader
 from .utils.config import setup_calibration_files
 from .utils.devices import follower_lock, safe_disconnect_device
 
@@ -40,6 +38,9 @@ class TeleoperateRequest(BaseModel):
     follower_port: str
     leader_config: str
     follower_config: str
+    # Set together for bimanual teleoperation; the ports above are then the left arms.
+    right_leader_port: str | None = None
+    right_follower_port: str | None = None
 
 
 def get_joint_positions_from_robot(robot) -> dict[str, float]:
@@ -68,6 +69,9 @@ def get_joint_positions_from_robot(robot) -> dict[str, float]:
         "gripper": "Jaw",
     }
 
+    if PROFILE.name == "dk1":
+        return _dk1_joint_positions(robot)
+
     try:
         observation = robot.get_observation()
 
@@ -95,6 +99,33 @@ def get_joint_positions_from_robot(robot) -> dict[str, float]:
     except Exception as e:
         logger.error(f"Error getting joint positions: {e}")
         return dict.fromkeys(motor_to_urdf_mapping.values(), 0.0)
+
+
+# The DK1 gripper reports 0 (open) to 1 (closed); each URDF finger slides from
+# 0 (open) to -0.045 m (closed).
+_DK1_FINGER_CLOSED_M = -0.045
+
+
+def _dk1_joint_positions(robot) -> dict[str, float]:
+    """Map DK1 follower observations (radians, URDF zero) onto its URDF joints.
+
+    A bimanual follower reports ``left_``/``right_`` prefixed keys, which match the
+    joint names of the two-arm URDF.
+    """
+    try:
+        observation = robot.get_observation()
+    except Exception as e:
+        logger.error(f"Error getting joint positions: {e}")
+        return {}
+    prefixes = ("left_", "right_") if "left_joint_1.pos" in observation else ("",)
+    joints: dict[str, float] = {}
+    for prefix in prefixes:
+        for i in range(1, 7):
+            joints[f"{prefix}joint{i}"] = float(observation[f"{prefix}joint_{i}.pos"])
+        finger = _DK1_FINGER_CLOSED_M * float(observation[f"{prefix}gripper.pos"])
+        joints[f"{prefix}gripper_left"] = finger
+        joints[f"{prefix}gripper_right"] = finger
+    return joints
 
 
 def _safe_disconnect(device) -> None:
@@ -141,58 +172,18 @@ def handle_start_teleoperation(request: TeleoperateRequest, websocket_manager=No
             request.leader_config, request.follower_config
         )
 
-        # Create robot and teleop configs
-        robot_config = SO101FollowerConfig(
-            port=request.follower_port,
-            id=follower_config_name,
-        )
-
-        teleop_config = SO101LeaderConfig(
-            port=request.leader_port,
-            id=leader_config_name,
-        )
-
-        # Connect synchronously. If either device fails to connect, clean up the
-        # other (so its serial port is released) and report the error — do NOT
-        # leave the caller thinking teleoperation started.
         logger.info("Initializing robot and teleop device...")
-        robot = SO101Follower(robot_config)
-        teleop_device = SO101Leader(teleop_config)
+        robot = make_follower(
+            request.follower_port, follower_config_name, right_port=request.right_follower_port
+        )
+        teleop_device = make_leader(
+            request.leader_port, leader_config_name, right_port=request.right_leader_port
+        )
 
-        # Connect each arm separately so the error names which one failed and
-        # tells the user what to do, instead of a generic "failed to start".
-        logger.info("Connecting to follower arm...")
-        try:
-            robot.bus.connect()
-        except Exception as e:
-            raise RuntimeError(
-                f"Could not connect to the follower arm on {request.follower_port}. "
-                "Make sure it's plugged in and powered on, then try again."
-            ) from e
-
-        logger.info("Connecting to leader arm...")
-        try:
-            teleop_device.bus.connect()
-        except Exception as e:
-            raise RuntimeError(
-                f"Could not connect to the leader arm on {request.leader_port}. "
-                "Make sure it's plugged in and powered on, then try again."
-            ) from e
-
-        # Feetech motors only store calibration registers with the torque off,
-        # which also opens their EEPROM lock.
-        logger.info("Writing calibration to motors...")
-        robot.bus.disable_torque()
-        robot.bus.write_calibration(robot.calibration)
-        teleop_device.bus.disable_torque()
-        teleop_device.bus.write_calibration(teleop_device.calibration)
-
-        # Connect cameras and configure motors
-        logger.info("Connecting cameras and configuring motors...")
-        for cam in robot.cameras.values():
-            cam.connect()
-        robot.configure()
-        teleop_device.configure()
+        # Connect synchronously. If either device fails to connect, the except
+        # below cleans up the other (so its serial port is released) and reports
+        # the error — do NOT leave the caller thinking teleoperation started.
+        connect_devices(robot, teleop_device, request.follower_port, request.leader_port)
         logger.info("Successfully connected to both devices")
 
         current_robot = robot

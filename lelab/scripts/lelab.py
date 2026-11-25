@@ -471,6 +471,12 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Do not open a browser automatically.",
     )
     parser.add_argument(
+        "--robot",
+        choices=["so101", "dk1"],
+        default=None,
+        help="Arm pair to drive (default: $LELAB_ROBOT, else so101).",
+    )
+    parser.add_argument(
         "--stop",
         action="store_true",
         help="Stop a running LeLab (free ports 8000/8080) and exit.",
@@ -485,6 +491,10 @@ def main(argv: Sequence[str] | None = None) -> None:
     if args.stop:
         _run_stop()
         return
+
+    if args.robot:
+        # Read by lelab.robot_profile in the server process (and its reload workers).
+        os.environ["LELAB_ROBOT"] = args.robot
 
     if args.dev and args.rebuild:
         parser.error("--rebuild is for production mode; dev mode serves from Vite.")

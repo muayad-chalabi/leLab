@@ -37,6 +37,7 @@ from lerobot.teleoperators import (
 )
 from lerobot.utils.utils import init_logging
 
+from .robot_profile import PROFILE, follower_config, leader_config
 from .utils.config import is_valid_robot_name
 from .utils.devices import safe_disconnect_device
 
@@ -259,13 +260,9 @@ class CalibrationManager:
 
             # Create device configuration
             if request.device_type == "robot":
-                from lerobot.robots.so_follower import SO101FollowerConfig
-
-                config = SO101FollowerConfig(port=request.port, id=request.config_file)
+                config = follower_config(request.port, request.config_file)
             elif request.device_type == "teleop":
-                from lerobot.teleoperators.so_leader import SO101LeaderConfig
-
-                config = SO101LeaderConfig(port=request.port, id=request.config_file)
+                config = leader_config(request.port, request.config_file)
             else:
                 raise ValueError(f"Unknown device type: {request.device_type}")
 
@@ -278,11 +275,21 @@ class CalibrationManager:
                 self.device = make_teleoperator_from_config(config)
 
             logger.info("Connecting to device...")
-            self.device.connect(calibrate=False)
+            if PROFILE.feetech_calibration:
+                self.device.connect(calibrate=False)
+            else:
+                # The DK1 follower's connect() takes no calibrate flag.
+                self.device.connect()
 
             if self.stop_calibration:
                 logger.info("Calibration stopped after device connection")
                 self._cleanup_and_finish("Calibration cancelled")
+                return
+
+            if not PROFILE.feetech_calibration:
+                # Nothing to calibrate; connecting proved the arm is on this port.
+                self._save_placeholder_calibration()
+                self._cleanup_and_finish("Arm found, no calibration needed", status="completed")
                 return
 
             # Start Step 1: Homing
@@ -492,8 +499,18 @@ class CalibrationManager:
 
         logger.info(f"Calibration saved to {self.device.calibration_fpath}")
 
-        # Robot-record write-back: if this calibration was launched from a tile,
-        # update the robot's port + config field for the side that was just calibrated.
+        self._write_back_robot_record()
+
+    def _save_placeholder_calibration(self):
+        """Write an empty calibration file so the UI treats the arm as ready."""
+        self.device.calibration = {}
+        self.device._save_calibration()
+        logger.info(f"Placeholder calibration saved to {self.device.calibration_fpath}")
+        self._write_back_robot_record()
+
+    def _write_back_robot_record(self):
+        """If this calibration was launched from a tile, update that robot's port + config
+        field for the side that was just calibrated."""
         request = self._current_request
         if request is not None and request.robot_name:
             from .utils.config import save_robot_record

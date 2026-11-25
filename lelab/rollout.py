@@ -40,6 +40,7 @@ from pydantic import BaseModel, field_validator
 from lerobot.utils.device_utils import auto_select_torch_device
 
 from .camera_config import lerobot_camera_settings, validate_camera_rotations
+from .robot_profile import PROFILE
 from .utils.config import setup_follower_calibration_file
 from .utils.devices import follower_lock
 
@@ -53,6 +54,8 @@ class InferenceRequest(BaseModel):
     task: str = ""
     cameras: dict[str, dict[str, Any]] = {}
     duration_s: int = 60
+    # Set for a bimanual robot; follower_port is then the left arm.
+    right_follower_port: str | None = None
 
     @field_validator("cameras")
     @classmethod
@@ -187,6 +190,16 @@ def _rollout_inference_args(policy_path: str) -> list[str]:
     # recommend keeping this at 0 (never > 5) for stable real-robot rollout.
     args.append("--inference.queue_threshold=0")
     return args
+
+
+def _robot_port_args(request: InferenceRequest) -> list[str]:
+    if request.right_follower_port:
+        return [
+            f"--robot.type={PROFILE.bimanual_follower_type}",
+            f"--robot.left_arm_port={request.follower_port}",
+            f"--robot.right_arm_port={request.right_follower_port}",
+        ]
+    return [f"--robot.type={PROFILE.follower_type}", f"--robot.port={request.follower_port}"]
 
 
 def _format_cameras_arg(cameras: dict[str, dict[str, Any]]) -> str:
@@ -348,8 +361,7 @@ def handle_start_inference(request: InferenceRequest) -> dict[str, Any]:
             "--strategy.type=base",
             f"--policy.path={policy_path}",
             f"--policy.device={auto_select_torch_device().type}",
-            "--robot.type=so101_follower",
-            f"--robot.port={request.follower_port}",
+            *_robot_port_args(request),
             f"--robot.id={follower_id}",
             # JSON-quoted: draccus decodes a string as YAML, so "step 1: grab it" became a dict.
             f"--task={json.dumps(request.task)}",

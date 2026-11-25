@@ -115,8 +115,8 @@ def test_start_teleoperation_reports_connection_failure(
         def disconnect(self) -> None:
             self.disconnected = True
 
-    monkeypatch.setattr(teleop, "SO101Follower", _Device)
-    monkeypatch.setattr(teleop, "SO101Leader", _Device)
+    monkeypatch.setattr(teleop, "make_follower", lambda *args, **kwargs: _Device(None))
+    monkeypatch.setattr(teleop, "make_leader", lambda *args, **kwargs: _Device(None))
 
     request = teleop.TeleoperateRequest(
         leader_port="COM_LEADER",
@@ -172,9 +172,11 @@ def test_start_teleoperation_disconnects_follower_when_leader_fails(
 
     created: dict = {}
     monkeypatch.setattr(
-        teleop, "SO101Follower", lambda config: created.setdefault("follower", _Follower(config))
+        teleop, "make_follower", lambda *args, **kwargs: created.setdefault("follower", _Follower(None))
     )
-    monkeypatch.setattr(teleop, "SO101Leader", lambda config: created.setdefault("leader", _Leader(config)))
+    monkeypatch.setattr(
+        teleop, "make_leader", lambda *args, **kwargs: created.setdefault("leader", _Leader(None))
+    )
 
     request = teleop.TeleoperateRequest(
         leader_port="COM_LEADER",

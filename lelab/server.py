@@ -68,6 +68,7 @@ from .replay import (
     handle_start_replay,
     handle_stop_replay,
 )
+from .robot_profile import PROFILE
 from .rollout import (
     InferenceRequest,
     handle_inference_status,
@@ -418,6 +419,17 @@ def stop_inference():
 @app.get("/inference-status")
 def inference_status():
     return handle_inference_status()
+
+
+@app.get("/robot-profile")
+def robot_profile():
+    """Which arm pair this server drives, and the follower URDF for the 3D viewer."""
+    return {
+        "robot": PROFILE.name,
+        "urdf_path": PROFILE.urdf_path,
+        "bimanual": PROFILE.bimanual_follower_type is not None,
+        "bimanual_urdf_path": PROFILE.bimanual_urdf_path,
+    }
 
 
 @app.get("/health")
@@ -1356,7 +1368,18 @@ def get_robot_config(robot_type: RobotSideLiteral, available_configs: str = ""):
 
 def _record_with_clean(record: dict) -> dict:
     """Attach `is_clean` to a record for API responses."""
-    return {**record, "is_clean": is_robot_record_clean(record)}
+    out = {**record, "is_clean": is_robot_record_clean(record)}
+    # Bimanual: resolve the right-arm robot's ports so requests can carry them.
+    partner_name = record.get("right_arm") or ""
+    if partner_name:
+        partner = get_robot_record(partner_name) if is_valid_robot_name(partner_name) else None
+        partner_clean = (
+            partner is not None and partner_name != record["name"] and is_robot_record_clean(partner)
+        )
+        out["is_clean"] = out["is_clean"] and partner_clean
+        out["right_leader_port"] = partner["leader_port"] if partner_clean else ""
+        out["right_follower_port"] = partner["follower_port"] if partner_clean else ""
+    return out
 
 
 @app.get("/robots")

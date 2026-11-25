@@ -107,7 +107,7 @@ def test_start_replay_reports_connection_failure(monkeypatch: pytest.MonkeyPatch
         def disconnect(self) -> None:
             self.disconnected = True
 
-    monkeypatch.setattr(replay, "SO101Follower", _Follower)
+    monkeypatch.setattr(replay, "make_follower", lambda *args, **kwargs: _Follower(None))
 
     result = replay.handle_start_replay(_replay_request())
 
